@@ -1946,8 +1946,30 @@ def GetSlabReport():
 # WatsonX Prompt Generation  
 def generatePrompt(combined_data, slab):
     try:
+        # Display slab data safely and handle different types
         st.write(slab)
-        st.write(json.loads(slab))
+        if isinstance(slab, str):
+            try:
+                slab_data = json.loads(slab)
+                st.write(slab_data)
+                slab_content = slab  # Use the string directly in the prompt
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse slab JSON: {str(e)}")
+                st.warning(f"Failed to parse slab JSON: {str(e)}")
+                return combined_data
+        elif isinstance(slab, dict):
+            st.write(slab)  # Already a dictionary, no need to parse
+            slab_content = json.dumps(slab, indent=2)  # Convert to JSON string for the prompt
+        elif isinstance(slab, pd.DataFrame):
+            # Convert DataFrame to JSON string for display and prompt
+            slab_dict = slab.to_dict(orient='records')
+            st.write(slab_dict)
+            slab_content = json.dumps(slab_dict, indent=2)
+        else:
+            logger.error(f"Unexpected type for slab: {type(slab)}")
+            st.warning(f"Unexpected type for slab: {type(slab)}")
+            return combined_data
+
         cos_df = combined_data["COS"] if isinstance(combined_data["COS"], pd.DataFrame) else pd.DataFrame()
         asite_df = combined_data["Asite"] if isinstance(combined_data["Asite"], pd.DataFrame) else pd.DataFrame()
 
@@ -1960,9 +1982,8 @@ def generatePrompt(combined_data, slab):
 
             The data provided is as follows:
             
-
             Slab:
-            {slab}
+            {slab_content}
 
             COS Table Data:
             {cos_json}
@@ -2167,9 +2188,6 @@ def generatePrompt(combined_data, slab):
         logger.error(f"Error in WatsonX API call: {str(e)}")
         st.warning(f"Error in WatsonX API call: {str(e)}. Using fallback method to calculate totals.")
         return (combined_data)
-
-
-
 
 
 def extract_and_repair_json(text):
